@@ -107,7 +107,7 @@ class Model:
         original_tax_rate = tax_for_exercise_after_public / \
             ((self.sell_price - self.strike_price) * (iso_exercise_units + nso_exercise_units))
 
-        effective_tax_rate = (tax_after + tax_due_now) / \
+        current_tax_rate = (tax_after + tax_due_now) / \
             ((self.sell_price - self.strike_price) *
              (iso_exercise_units + nso_exercise_units))
 
@@ -128,7 +128,7 @@ class Model:
             "long_term_profit_after_tax": int(long_term_profit),
             "sellable_stock_value_after_tax": int(sellable_stock_value_after_tax),
             "orginal_tax_rate": int(original_tax_rate * 100),
-            "effective_tax_rate": int(effective_tax_rate * 100)
+            "current_tax_rate": int(current_tax_rate * 100)
         }
 
 
