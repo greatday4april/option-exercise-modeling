@@ -93,7 +93,7 @@ class Model:
             self.sell_price - self.strike_price)
 
         sellable_stock_value_after_tax = sellable_stock_value - self.get_tax(
-            self.INCOME_TAX_BRACKETS, sellable_stock_value + self.taxable_income)
+            self.INCOME_TAX_BRACKETS, sellable_stock_value + self.taxable_income) + self.get_tax(self.INCOME_TAX_BRACKETS, self.taxable_income)
 
         return {
             "cost_now": int(cost_now),
@@ -111,14 +111,14 @@ if __name__ == '__main__':
     )
 
     model.iso_total_units = st.sidebar.slider(
-        'Total exercisable ISO units', 5000, 200000, 10000, 10,
+        'Total exercisable ISO units', 5000, 30000, 10000, 10,
     )
     model.nso_total_units = st.sidebar.slider(
-        'Total exercisable NSO units', 5000, 500000, 50000, 10,
+        'Total exercisable NSO units', 5000, 200000, 50000, 10,
     )
 
-    model.strike_price = st.sidebar.slider('Strike price', 0.0, 30.0, 15.0, 0.1)
-    model.fmv = st.sidebar.slider('Fair market value', 0.0, 30.0, 15.0, 0.1)
+    model.strike_price = st.sidebar.slider('Strike price', 0.0, 30.0, 10.0, 0.1)
+    model.fmv = st.sidebar.slider('Fair market value', 0.0, 50.0, 10.0, 0.1)
     model.sell_price = st.sidebar.slider('Sell price', 0.0, 200.0, 60.0, 0.1)
 
     iso_exercise_units = st.sidebar.slider(
