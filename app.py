@@ -103,21 +103,27 @@ class Model:
 
         # tax if don't exercise now
         new_spread = self.sell_price - self.strike_price
-        income_tax_for_exercise_after_public = self.get_income_tax(
+        income_tax_total = self.get_income_tax(
             self.taxable_income + nso_exercise_units * new_spread
-        ) - self.get_income_tax(self.taxable_income)
+        )
+        income_tax_due_for_exercise_after_public = income_tax_total - \
+            self.get_income_tax(self.taxable_income)
 
         capital_gain_for_exercise_after_public = self.get_capital_gain_tax(
             iso_exercise_units * new_spread
-        ) - self.get_income_tax(self.taxable_income)
+        )
 
         amt_tax_for_exercise_after_public = self.get_tax(
             self.AMT_TAX_BRACKETS, self.taxable_income +
             (iso_exercise_units + nso_exercise_units) * new_spread
         )
-        amt_tax_due_for_exercise_after_public = max(amt_tax_for_exercise_after_public - income_tax_for_exercise_after_public, 0)
 
-        tax_for_exercise_after_public = amt_tax_due_for_exercise_after_public + capital_gain_for_exercise_after_public + income_tax_for_exercise_after_public
+        amt_tax_due_for_exercise_after_public = max(
+            amt_tax_for_exercise_after_public - income_tax_total, 0)
+
+        tax_for_exercise_after_public = amt_tax_due_for_exercise_after_public + \
+            capital_gain_for_exercise_after_public + \
+            income_tax_due_for_exercise_after_public
 
         # tax savings
         tax_savings = tax_for_exercise_after_public - tax_after - tax_due_now
