@@ -39,6 +39,7 @@ class Model:
 
     MEDICARE_BRACKETS = [
         TaxRate(0, 1.45),
+        # TODO different for married
         TaxRate(200000, 2.35),
     ]
 
