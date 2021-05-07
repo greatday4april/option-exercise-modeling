@@ -55,14 +55,18 @@ class Model:
         TaxRate(599013, 12.3)
     ]
 
+    NIIT_TAX_BRACKETS = [
+        TaxRate(0, 3.8)
+    ]
+
     def get_fica_tax(self, amount):
-        return amount * 6.2 / 100 + self.get_tax(self.MEDICARE_BRACKETS, amount)
+        return max(amount, 142800) * 6.2 / 100 + self.get_tax(self.MEDICARE_BRACKETS, amount)
 
     def get_income_tax(self, amount):
         return self.get_fica_tax(amount) + self.get_tax(self.INCOME_TAX_BRACKETS, amount) + self.get_tax(self.STATE_TAX_BRACKETS, amount)
 
     def get_capital_gain_tax(self, amount):
-        return self.get_tax(self.CAPITAL_GAIN_BRACKETS, amount) + self.get_tax(self.STATE_TAX_BRACKETS, amount)
+        return self.get_tax(self.CAPITAL_GAIN_BRACKETS, amount) + self.get_tax(self.STATE_TAX_BRACKETS, amount) + self.get_tax(self.NIIT_TAX_BRACKETS, amount)
 
     def get_tax(self, tax_brackets: List[TaxRate], amount: float):
         tax = 0
@@ -77,19 +81,18 @@ class Model:
         return tax
 
     def compute(self, iso_exercise_units, nso_exercise_units):
-        # amt_tax_now =
         spread = self.fmv - self.strike_price
-        income_tax_total = self.get_income_tax(self.taxable_income + nso_exercise_units * spread)
-        income_tax_without = self.get_income_tax(self.taxable_income)
 
-        income_tax_now = income_tax_total - income_tax_without
+        income_tax_total = self.get_income_tax(self.taxable_income + nso_exercise_units * spread)
+        income_tax_without_options = self.get_income_tax(self.taxable_income)
+        income_tax_due = income_tax_total - income_tax_without_options
 
         amt_tax_total = self.get_tax(
             self.AMT_TAX_BRACKETS, self.taxable_income + iso_exercise_units * spread
         )
         amt_tax_due = max(0, amt_tax_total - income_tax_total)
 
-        tax_due_now = amt_tax_due + income_tax_now
+        tax_due_now = amt_tax_due + income_tax_due
 
         tax_after = self.get_capital_gain_tax(
             iso_exercise_units * (self.sell_price - self.strike_price) + nso_exercise_units * (self.sell_price - self.fmv)
@@ -98,9 +101,23 @@ class Model:
 
         long_term_profit = (iso_exercise_units + nso_exercise_units) * self.sell_price - cost_now - tax_after
 
+        # tax if don't exercise now
+        income_tax_for_exercise_after_public = self.get_income_tax(
+            self.taxable_income + nso_exercise_units * (self.sell_price - self.strike_price)
+        ) - self.get_income_tax(self.taxable_income)
+
+        capital_gain_for_exercise_after_public = self.get_capital_gain_tax(
+            iso_exercise_units * (self.sell_price - self.strike_price)
+        ) - self.get_income_tax(self.taxable_income)
+
         tax_for_exercise_after_public = self.get_income_tax(
             self.taxable_income + (iso_exercise_units + nso_exercise_units) * (self.sell_price - self.strike_price)
         ) - self.get_income_tax(self.taxable_income)
+
+
+
+
+
 
         tax_savings = tax_for_exercise_after_public - tax_after - tax_due_now
 
