@@ -62,7 +62,7 @@ class Model:
         return self.get_fica_tax(amount) + self.get_tax(self.INCOME_TAX_BRACKETS, amount) + self.get_tax(self.STATE_TAX_BRACKETS, amount)
 
     def get_capital_gain_tax(self, amount):
-        return self.get_fica_tax(amount) + self.get_tax(self.CAPITAL_GAIN_BRACKETS, amount) + self.get_tax(self.STATE_TAX_BRACKETS, amount)
+        return self.get_tax(self.CAPITAL_GAIN_BRACKETS, amount) + self.get_tax(self.STATE_TAX_BRACKETS, amount)
 
     def get_tax(self, tax_brackets: List[TaxRate], amount: float):
         tax = 0
