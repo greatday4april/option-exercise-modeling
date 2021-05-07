@@ -136,8 +136,7 @@ class Model:
              (iso_exercise_units + nso_exercise_units))
 
         # sellable stock
-        nso_units_first_vest = (
-            self.nso_total_units + self.iso_total_units) / 4 - iso_exercise_units
+        nso_units_first_vest = (self.nso_total_units + self.iso_total_units) / 4 - self.iso_total_units
 
         sellable_iso = self.iso_total_units - iso_exercise_units
         sellable_nso = max(nso_units_first_vest - nso_exercise_units, 0)
@@ -145,17 +144,23 @@ class Model:
         sellable_stock_value = (sellable_iso + sellable_nso) * (
             self.sell_price - self.strike_price)
 
-        sellable_stock_value_after_tax = sellable_stock_value - self.get_income_tax(sellable_stock_value + self.taxable_income) + self.get_income_tax(self.taxable_income)
+        sellable_stock_value_after_tax = sellable_stock_value - \
+            self.get_income_tax(
+                sellable_nso * (self.sell_price - self.strike_price) + self.taxable_income
+            ) - \
+            self.get_capital_gain_tax(
+                sellable_iso * (self.sell_price - self.strike_price)
+            ) + self.get_income_tax(self.taxable_income)
 
         return {
             "cost_now": int(cost_now),
-            "tax_savings": int(tax_savings),
+            "total_tax_savings": int(tax_savings),
+            "amt_tax_saving_for_exercise_after_public": amt_tax_due_for_exercise_after_public,
             "long_term_profit_after_tax": int(long_term_profit),
             "sellable_stock_value_after_tax": int(sellable_stock_value_after_tax),
             "orginal_tax_rate": int(original_tax_rate * 100),
             "current_tax_rate": int(current_tax_rate * 100)
         }
-
 
 
 if __name__ == '__main__':
@@ -165,7 +170,7 @@ if __name__ == '__main__':
     )
 
     model.iso_total_units = st.sidebar.number_input(
-        'Total exercisable ISO units', 5000, 30000, 10000, 10,
+        'Total exercisable ISO units', 5000, 30000, 5000, 10,
     )
     model.nso_total_units = st.sidebar.number_input(
         'Total exercisable NSO units', 5000, 200000, 50000, 10,
@@ -176,7 +181,7 @@ if __name__ == '__main__':
     model.fmv = st.sidebar.number_input(
         'Fair market value', 0.0, 50.0, 10.0, 0.1)
     model.sell_price = st.sidebar.number_input(
-        'Sell price', 0.0, 200.0, 12.0, 0.1)
+        'Sell price', 0.0, 200.0, 100.0, 0.1)
 
     iso_exercise_units = st.sidebar.slider(
         'Number of ISO units to exercise', 0, model.iso_total_units, 1, 10,
@@ -193,8 +198,8 @@ if __name__ == '__main__':
 
     output = model.compute(iso_exercise_units, nso_exercise_units)
     df = pd.DataFrame(
-        [output.values()],
-        columns=output.keys(),
+        [[key, value] for key, value in output.items()],
+        columns=['name', 'dollar value']
     )
 
     st.table(df)
