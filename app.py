@@ -102,23 +102,24 @@ class Model:
         long_term_profit = (iso_exercise_units + nso_exercise_units) * self.sell_price - cost_now - tax_after
 
         # tax if don't exercise now
+        new_spread = self.sell_price - self.strike_price
         income_tax_for_exercise_after_public = self.get_income_tax(
-            self.taxable_income + nso_exercise_units * (self.sell_price - self.strike_price)
+            self.taxable_income + nso_exercise_units * new_spread
         ) - self.get_income_tax(self.taxable_income)
 
         capital_gain_for_exercise_after_public = self.get_capital_gain_tax(
-            iso_exercise_units * (self.sell_price - self.strike_price)
+            iso_exercise_units * new_spread
         ) - self.get_income_tax(self.taxable_income)
 
-        tax_for_exercise_after_public = self.get_income_tax(
-            self.taxable_income + (iso_exercise_units + nso_exercise_units) * (self.sell_price - self.strike_price)
-        ) - self.get_income_tax(self.taxable_income)
+        amt_tax_for_exercise_after_public = self.get_tax(
+            self.AMT_TAX_BRACKETS, self.taxable_income +
+            (iso_exercise_units + nso_exercise_units) * new_spread
+        )
+        amt_tax_due_for_exercise_after_public = max(amt_tax_for_exercise_after_public - income_tax_for_exercise_after_public, 0)
 
+        tax_for_exercise_after_public = amt_tax_due_for_exercise_after_public + capital_gain_for_exercise_after_public + income_tax_for_exercise_after_public
 
-
-
-
-
+        # tax savings
         tax_savings = tax_for_exercise_after_public - tax_after - tax_due_now
 
         original_tax_rate = tax_for_exercise_after_public / \
@@ -128,6 +129,7 @@ class Model:
             ((self.sell_price - self.strike_price) *
              (iso_exercise_units + nso_exercise_units))
 
+        # sellable stock
         nso_units_first_vest = (
             self.nso_total_units + self.iso_total_units) / 4 - iso_exercise_units
 
