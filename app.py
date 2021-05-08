@@ -14,6 +14,7 @@ st.title('Option Exercise Modeling')
 
 # Main Model class
 class Model:
+    # 12000 exemption
     INCOME_TAX_BRACKETS = [
         TaxRate(0, 10),
         TaxRate(9876, 12),
@@ -30,6 +31,7 @@ class Model:
         TaxRate(72900, 26),
         TaxRate(72900 + 197900, 28)
         # TODO this doesnt consider phase out https://www.taxpolicycenter.org/briefing-book/what-amt
+        # from 1M, remove the 72900 exemption
     ]
 
     # TODO this assumes the highest bracket given income
@@ -39,8 +41,7 @@ class Model:
 
     MEDICARE_BRACKETS = [
         TaxRate(0, 1.45),
-        # TODO different for married
-        TaxRate(200000, 2.35),
+        TaxRate(200000, 2.35),          # TODO different for married
     ]
 
     STATE_TAX_BRACKETS = [
@@ -52,7 +53,8 @@ class Model:
         TaxRate(58635, 9.3),
         TaxRate(299509, 10.3),
         TaxRate(359408, 11.3),
-        TaxRate(599013, 12.3)
+        TaxRate(599013, 12.3),
+        TaxRate(1000000, 13.3),
     ]
 
     NIIT_TAX_BRACKETS = [
@@ -63,6 +65,7 @@ class Model:
         return max(amount, 142800) * 6.2 / 100 + self.get_tax(self.MEDICARE_BRACKETS, amount)
 
     def get_income_tax(self, amount):
+        # TODO fica is only for W2 wages (include spread), not including stock profit
         return self.get_fica_tax(amount) + self.get_tax(self.INCOME_TAX_BRACKETS, amount) + self.get_tax(self.STATE_TAX_BRACKETS, amount)
 
     def get_capital_gain_tax(self, amount):
@@ -81,18 +84,23 @@ class Model:
         return tax
 
     def compute(self, iso_exercise_units, nso_exercise_units):
-        spread = self.fmv - self.strike_price
+        spread = self.fmv - self.strike_price   # 19 - 15
 
+        # NSO spread is included on W2
+        # W2 income = wage + NSO spread
         income_tax_total = self.get_income_tax(self.taxable_income + nso_exercise_units * spread)
         income_tax_without_options = self.get_income_tax(self.taxable_income)
         income_tax_due = income_tax_total - income_tax_without_options
 
         amt_tax_total = self.get_tax(
-            self.AMT_TAX_BRACKETS, self.taxable_income + iso_exercise_units * spread
+            self.AMT_TAX_BRACKETS, self.taxable_income + (nso_exercise_units + iso_exercise_units) * spread
         )
+        # when comparing with amt tax, dont include FICA tax
         amt_tax_due = max(0, amt_tax_total - income_tax_total)
 
+        # maximum of income or amt
         tax_due_now = amt_tax_due + income_tax_due
+
 
         tax_after = self.get_capital_gain_tax(
             iso_exercise_units * (self.sell_price - self.strike_price) + nso_exercise_units * (self.sell_price - self.fmv)
@@ -102,7 +110,7 @@ class Model:
         long_term_profit = (iso_exercise_units + nso_exercise_units) * self.sell_price - cost_now - tax_after
 
         # tax if don't exercise now
-        new_spread = self.sell_price - self.strike_price
+        new_spread = self.sell_price - self.strike_price # 60 - 15
         income_tax_total = self.get_income_tax(
             self.taxable_income + nso_exercise_units * new_spread
         )
@@ -110,8 +118,9 @@ class Model:
             self.get_income_tax(self.taxable_income)
 
         capital_gain_for_exercise_after_public = self.get_capital_gain_tax(
-            iso_exercise_units * new_spread
+            iso_exercise_units * new_spread # 60 - 15
         )
+
 
         amt_tax_for_exercise_after_public = self.get_tax(
             self.AMT_TAX_BRACKETS, self.taxable_income +
@@ -144,6 +153,7 @@ class Model:
         sellable_stock_value = (sellable_iso + sellable_nso) * (
             self.sell_price - self.strike_price)
 
+        # if i sell immediatly my ISO, it will be shortterm and same as federal income tax
         sellable_stock_value_after_tax = sellable_stock_value - \
             self.get_income_tax(
                 sellable_nso * (self.sell_price - self.strike_price) + self.taxable_income
