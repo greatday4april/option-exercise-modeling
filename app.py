@@ -14,6 +14,7 @@ st.title("Option Exercise Modeling")
 
 # Main Model class
 class Model:
+    # 12000 exemption
     INCOME_TAX_BRACKETS = [
         TaxRate(0, 10),
         TaxRate(19900, 12),
@@ -30,6 +31,7 @@ class Model:
         TaxRate(72900, 26),
         TaxRate(72900 + 197900, 28)
         # TODO this doesnt consider phase out https://www.taxpolicycenter.org/briefing-book/what-amt
+        # from 1M, remove the 72900 exemption
     ]
 
     # TODO this assumes the highest bracket given income
@@ -37,8 +39,7 @@ class Model:
 
     MEDICARE_BRACKETS = [
         TaxRate(0, 1.45),
-        # TODO different for married
-        TaxRate(200000, 2.35),
+        TaxRate(200000, 2.35),  # TODO different for married
     ]
 
     STATE_TAX_BRACKETS = [
@@ -91,7 +92,7 @@ class Model:
         return tax
 
     def compute(self, iso_exercise_units, nso_exercise_units):
-        spread = self.fmv - self.strike_price
+        spread = self.fmv - self.strike_price  # 19 - 15
 
         income_tax_total = self.get_income_tax(
             self.taxable_income + nso_exercise_units * spread
@@ -100,10 +101,19 @@ class Model:
         income_tax_due = income_tax_total - income_tax_without_options
 
         amt_tax_total = self.get_tax(
-            self.AMT_TAX_BRACKETS, self.taxable_income + iso_exercise_units * spread
+            self.AMT_TAX_BRACKETS,
+            self.taxable_income + (nso_exercise_units + iso_exercise_units) * spread,
         )
-        amt_tax_due = max(0, amt_tax_total - income_tax_total)
+        # when comparing with amt tax, dont include FICA tax
+        amt_tax_due = max(
+            0,
+            amt_tax_total
+            - self.get_federal_income_tax(
+                self.taxable_income + nso_exercise_units * spread
+            ),
+        )
 
+        # maximum of income or amt
         tax_due_now = amt_tax_due + income_tax_due
 
         tax_after = self.get_capital_gain_tax(
@@ -121,7 +131,7 @@ class Model:
         )
 
         # tax if don't exercise now
-        new_spread = self.sell_price - self.strike_price
+        new_spread = self.sell_price - self.strike_price  # 60 - 15
         income_tax_total = self.get_income_tax(
             self.taxable_income + nso_exercise_units * new_spread
         )
@@ -130,7 +140,7 @@ class Model:
         )
 
         capital_gain_for_exercise_after_public = self.get_capital_gain_tax(
-            iso_exercise_units * new_spread
+            iso_exercise_units * new_spread  # 60 - 15
         )
 
         amt_tax_for_exercise_after_public = self.get_tax(
@@ -186,6 +196,15 @@ class Model:
             + self.get_income_tax(self.taxable_income)
         )
 
+        sellable_nso_stock_value_after_tax = (
+            sellable_nso * (self.sell_price - self.strike_price)
+            - self.get_income_tax(
+                sellable_nso * (self.sell_price - self.strike_price)
+                + self.taxable_income
+            )
+            + self.get_income_tax(self.taxable_income)
+        )
+
         return {
             "cost_now": int(cost_now),
             "total_tax_savings": int(tax_savings),
@@ -221,6 +240,14 @@ if __name__ == "__main__":
     model.strike_price = st.sidebar.number_input("Strike price", 0.0, 30.0, 10.0, 0.1)
     model.fmv = st.sidebar.number_input("Fair market value", 0.0, 50.0, 10.0, 0.1)
     model.sell_price = st.sidebar.number_input("Sell price", 0.0, 200.0, 100.0, 0.1)
+
+    model.sell_month = st.sidebar.slider(
+        "Months after grant to sell",
+        12,
+        24,
+        15,
+        1,
+    )
 
     iso_exercise_units = st.sidebar.slider(
         "Number of ISO units to exercise",
