@@ -63,18 +63,10 @@ class Event:
         return (MOVE_MONTH - GRANT_MONTH) * 1.0 / (self.month - GRANT_MONTH)
 
     def cost(self):
-        return (
-            (self.price - STRIKE_PRICE) * self.quantity
-            if self.txn_type == "exercise"
-            else 0
-        )
+        return STRIKE_PRICE * self.quantity if self.txn_type == "exercise" else 0
 
     def cash(self):
-        return (
-            (self.price - STRIKE_PRICE) * self.quantity
-            if self.txn_type == "sale"
-            else 0
-        )
+        return self.price * self.quantity if self.txn_type == "sale" else 0
 
 
 class FY:
