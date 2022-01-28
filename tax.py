@@ -140,10 +140,8 @@ class Model:
         taxable = amount - DEDUCTION["married" if self.married else "single"]
         return self.get_fica_tax(taxable) + self.get_tax(INCOME_TAX_BRACKETS, taxable)
 
-    def get_federal_capital_gain_tax(self, amount):
-        return self.get_tax(CAPITAL_GAIN_TAX_BRACKETS, amount) + self.get_tax(
-            NIIT_TAX_BRACKETS, amount
-        )
+    def get_niit_tax(self, amount):
+        return self.get_tax(NIIT_TAX_BRACKETS, amount)
 
     def get_state_tax(self, amount):
         return self.get_tax(STATE_TAX_BRACKETS, amount)
@@ -221,7 +219,7 @@ def get_fy_projection(married, fy: FY, events: List[Event]):
     capital_gain_tax = (
         second_part * CAPITAL_GAIN_TAX_BRACKETS["single"][2].rate
         + first_part * CAPITAL_GAIN_TAX_BRACKETS["single"][1].rate
-    )
+    ) + m.get_niit_tax(capital_gain)
 
     cash = (
         fy.salary
@@ -249,21 +247,32 @@ def get_fy_projection(married, fy: FY, events: List[Event]):
     }
 
 
-first = Event(3000, 15, "exercise", "iso")
-second = Event(3377, 27, "exercise", "iso")
+first = Event(2000, 20, "exercise", "iso")
+second = Event(2377, 27, "exercise", "iso")
+
+nso_exercise = Event(20000, 40, "exercise", "nso")
+nso_sell = Event(20000, 40, "sale", "nso", nso_exercise.price)
+
 events = [
+    Event(10500, 18, "sale", "nso", FMV_AT_EXERCISE),
     first,
     second,
-    Event(3000, 15 + 12, "sale", "iso", first.price),
-    Event(20500, 30, "sale", "nso", FMV_AT_EXERCISE),
+    Event(10000, 18 + 9, "sale", "nso", FMV_AT_EXERCISE),
+    Event(2000, 20 + 12, "sale", "iso", first.price),
+    Event(10000, 37, "sale", "nso", FMV_AT_EXERCISE),
+    Event(2377, 27 + 12, "sale", "iso", FMV_AT_EXERCISE),
+    nso_exercise,
+    nso_sell,
 ]
+
+fy2022_events = [e for e in events if e.month < 21]
+fy2023_events = [e for e in events if e.month >= 21 and e.month < 33]
+fy2024_events = [e for e in events if e.month >= 33]
 
 pd.DataFrame(
     [
-        get_fy_projection(True, FYS[2], events[0:1]),
-        get_fy_projection(False, FYS[2], events[0:1]),
-        get_fy_projection(True, FYS[3], events[1:]),
-        get_fy_projection(False, FYS[3], events[1:]),
+        get_fy_projection(True, FYS[4], fy2024_events),
+        get_fy_projection(False, FYS[4], fy2024_events),
     ]
 )
 
