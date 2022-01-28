@@ -239,6 +239,17 @@ def get_fy_projection(married, fy: FY, events: List[Event]):
         "status": "married" if married else "single",
         "family_income": int(self_income + spouse_income),
         "capital_gain": int(capital_gain),
+        "effect_tax_rate": round(
+            (
+                federal_income_tax
+                + federal_amt_tax
+                + capital_gain_tax
+                + ca_income_tax
+                + ca_amt_tax
+            )
+            / (self_income + spouse_income + capital_gain),
+            2,
+        ),
         "federal_income_tax": int(federal_income_tax),
         "ca_income_tax": int(ca_income_tax),
         "capital_gain_tax": int(capital_gain_tax),
@@ -247,34 +258,34 @@ def get_fy_projection(married, fy: FY, events: List[Event]):
     }
 
 
-first = Event(2000, 20, "exercise", "iso")
-second = Event(2377, 27, "exercise", "iso")
+# first = Event(2000, 20, "exercise", "iso")
+# second = Event(2377, 27, "exercise", "iso")
 
-nso_exercise = Event(20000, 40, "exercise", "nso")
-nso_sell = Event(20000, 40, "sale", "nso", nso_exercise.price)
+# nso_exercise = Event(20000, 40, "exercise", "nso")
+# nso_sell = Event(20000, 40, "sale", "nso", nso_exercise.price)
 
-events = [
-    Event(10500, 18, "sale", "nso", FMV_AT_EXERCISE),
-    first,
-    second,
-    Event(10000, 18 + 9, "sale", "nso", FMV_AT_EXERCISE),
-    Event(2000, 20 + 12, "sale", "iso", first.price),
-    Event(10000, 37, "sale", "nso", FMV_AT_EXERCISE),
-    Event(2377, 27 + 12, "sale", "iso", FMV_AT_EXERCISE),
-    nso_exercise,
-    nso_sell,
-]
+# events = [
+#     Event(10500, 18, "sale", "nso", FMV_AT_EXERCISE),
+#     first,
+#     second,
+#     Event(10000, 18 + 9, "sale", "nso", FMV_AT_EXERCISE),
+#     Event(2000, 20 + 12, "sale", "iso", first.price),
+#     Event(10000, 37, "sale", "nso", FMV_AT_EXERCISE),
+#     Event(2377, 27 + 12, "sale", "iso", FMV_AT_EXERCISE),
+#     nso_exercise,
+#     nso_sell,
+# ]
 
-fy2022_events = [e for e in events if e.month < 21]
-fy2023_events = [e for e in events if e.month >= 21 and e.month < 33]
-fy2024_events = [e for e in events if e.month >= 33]
+# fy2022_events = [e for e in events if e.month < 21]
+# fy2023_events = [e for e in events if e.month >= 21 and e.month < 33]
+# fy2024_events = [e for e in events if e.month >= 33]
 
-pd.DataFrame(
-    [
-        get_fy_projection(True, FYS[4], fy2024_events),
-        get_fy_projection(False, FYS[4], fy2024_events),
-    ]
-)
+# pd.DataFrame(
+#     [
+#         get_fy_projection(True, FYS[4], fy2024_events),
+#         get_fy_projection(False, FYS[4], fy2024_events),
+#     ]
+# )
 
 # def get_average_price(events, low, needed):
 #     balance = 0
