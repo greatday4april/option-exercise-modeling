@@ -1,7 +1,7 @@
 from datetime import datetime
 import streamlit as st
 from typing import List
-import pandas as pd
+import numpy as np
 from tax_rates import (
     AMT_TAX_BRACKETS,
     CA_AMT_TAX_BRACKETS,
@@ -111,6 +111,13 @@ FYS = {
         127710 * 1.1 * 1.1,
         300000 * (1 / 4 + 1 / 4 + 9 / 48),
         220000 * (1 / 4) + 90000 * (1 / 4 + 3 / 16),
+    ),
+    "2025": FY(
+        "Dec 31 2025",
+        238050,
+        127710 * 1.1 * 1.1 * 1.1,
+        300000 * (1 / 16 + 1 / 16 + 1 / 16),
+        220000 * (1 / 4) + 120000 * (1 / 4 + 1 / 4 + 3 / 16),
     ),
 }
 
