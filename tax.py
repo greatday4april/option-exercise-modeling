@@ -15,31 +15,38 @@ from tax_rates import (
     TaxRate,
 )
 
-st.title("2022 - 2025 Income and Tax Projection")
+
+def to_date(date_expr) -> datetime:
+    return datetime.strptime(date_expr, "%b %d %Y")  # "Mar 21 2021"
+
+
+st.title("2022 - 2025 Financial Planning")
 
 STRIKE_PRICE = 15.68
 FMV_AT_EXERCISE = 19.95
 
-GRANT_MONTH = 0
-MOVE_MONTH = 12
-TOTAL_MONTH = 48
+GRANT_DATE = to_date("Mar 19 2021")
+MOVE_DATE = to_date("Feb 01 2022")
+END_DATE = to_date("Mar 15 2025")
 
-MOVE_MONTH_PRICE = 60
-END_MONTH_PRICE = 140
+MOVE_DATE_PRICE = 60.0
+END_DATE_PRICE = 140.0
 
 
 class Event:
-    def __init__(
-        self, quantity, month, txn_type, option_type="iso", exercise_price=None
-    ):
+    def __init__(self, date: str, txn_type, option_type, quantity, exercise_price=None):
         self.option_type = option_type
         self.quantity = quantity
-        self.price = (END_MONTH_PRICE - MOVE_MONTH_PRICE) * (month - MOVE_MONTH) / (
-            TOTAL_MONTH - MOVE_MONTH
-        ) + MOVE_MONTH_PRICE
+        self.date = to_date(date)
+        self.price = round(
+            (END_DATE_PRICE - MOVE_DATE_PRICE)
+            * (self.date - MOVE_DATE).days
+            / (END_DATE - MOVE_DATE).days
+            + MOVE_DATE_PRICE,
+            2,
+        )
         self.txn_type = txn_type
         self.exercise_price = exercise_price
-        self.month = month
 
     def income(self):
         if self.option_type == "iso" or self.txn_type == "sale":
@@ -48,7 +55,7 @@ class Event:
         return (self.price - STRIKE_PRICE) * self.quantity
 
     def capital_gain(self):
-        if self.txn_type == "exercise":
+        if "exercise" in self.txn_type:
             return 0
 
         if self.option_type == "iso":
@@ -60,25 +67,28 @@ class Event:
         if self.txn_type == "sale":
             return 0
 
-        return (MOVE_MONTH - GRANT_MONTH) * 1.0 / (self.month - GRANT_MONTH)
+        return (MOVE_DATE - GRANT_DATE).days * 1.0 / (self.date - GRANT_DATE).days
 
     def cost(self):
-        return STRIKE_PRICE * self.quantity if self.txn_type == "exercise" else 0
+        return int(STRIKE_PRICE * self.quantity if "exercise" in self.txn_type else 0)
 
     def cash(self):
-        return self.price * self.quantity if self.txn_type == "sale" else 0
+        return int(self.price * self.quantity if "sale" in self.txn_type else 0)
+
+    def json(self):
+        return {**self.__dict__, "cash": self.cash(), "cost": self.cost()}
 
 
 class FY:
     def __init__(
         self,
-        month,
+        date: str,
         salary,
         spouse_salary,
         vested_rsu,
         spouse_vested_rsu,
     ):
-        self.month = month
+        self.date = to_date(date)
         self.salary = salary
         self.spouse_salary = spouse_salary
         self.vested_rsu = vested_rsu
@@ -86,25 +96,23 @@ class FY:
         pass
 
 
-FYS = [
-    None,
-    None,
-    FY(24, 238050, 127710 + 37500, 300000 * 9 / 48, 0),
-    FY(
-        36,
+FYS = {
+    "2022": FY("Dec 31 2022", 238050, 127710 + 37500, 300000 * 9 / 48, 0),
+    "2023": FY(
+        "Dec 31 2023",
         238050,
         127710 * 1.1,
         300000 * (1 / 4 + 9 / 48),
         220000 * (1 / 4 + 3 / 16) + 90000 * (3 / 16),
     ),
-    FY(
-        48,
+    "2024": FY(
+        "Dec 31 2024",
         238050,
         127710 * 1.1 * 1.1,
         300000 * (1 / 4 + 1 / 4 + 9 / 48),
         220000 * (1 / 4) + 90000 * (1 / 4 + 3 / 16),
     ),
-]
+}
 
 
 class Model:
@@ -148,13 +156,14 @@ class Model:
 
 
 def get_fy_projection(married, fy: FY, events: List[Event]):
+    events = [e for e in events if e.date.year == fy.date.year]
     m = Model(married)
 
     self_income = fy.salary + fy.vested_rsu + sum(e.income() for e in events)
 
     # ignore 3 months of allocation for salary
     self_ca_income = sum(e.income() * e.ca_ratio() for e in events)
-    if fy.month == 24:
+    if fy.date.year == 2022:
         self_ca_income += fy.salary * 3 / 12 + 37500 + 127710 * 2 / 12
 
     spouse_income = fy.spouse_salary + fy.spouse_vested_rsu
@@ -234,12 +243,12 @@ def get_fy_projection(married, fy: FY, events: List[Event]):
         - ca_amt_tax
     )
     return {
-        "year": str(int(fy.month / 12 + 2020)),
+        "year": str(fy.date.year),
         "cash": int(cash),
         "status": "married" if married else "single",
         "family_income": int(self_income + spouse_income),
         "capital_gain": int(capital_gain),
-        "effect_tax_rate": round(
+        "eff_tax_rate": round(
             (
                 federal_income_tax
                 + federal_amt_tax
@@ -258,32 +267,33 @@ def get_fy_projection(married, fy: FY, events: List[Event]):
     }
 
 
-# first = Event(2000, 20, "exercise", "iso")
-# second = Event(2377, 27, "exercise", "iso")
+# first = Event(6377, 27, "exercise", "iso")
 
-# nso_exercise = Event(20000, 40, "exercise", "nso")
-# nso_sell = Event(20000, 40, "sale", "nso", nso_exercise.price)
+# nso_1st_exercise = Event(10000, 30, "exercise", "nso")
+# nso_1st_sell = Event(10000, 30, "sale", "nso", nso_1st_exercise.price)
+
+# nso_exercise = Event(10000, 40, "exercise", "nso")
+# nso_sell = Event(10000, 40, "sale", "nso", nso_exercise.price)
 
 # events = [
 #     Event(10500, 18, "sale", "nso", FMV_AT_EXERCISE),
 #     first,
-#     second,
 #     Event(10000, 18 + 9, "sale", "nso", FMV_AT_EXERCISE),
-#     Event(2000, 20 + 12, "sale", "iso", first.price),
-#     Event(10000, 37, "sale", "nso", FMV_AT_EXERCISE),
-#     Event(2377, 27 + 12, "sale", "iso", FMV_AT_EXERCISE),
+#     nso_1st_exercise,
+#     nso_1st_sell,
+#     Event(6377, 27 + 12, "sale", "iso", first.price),
 #     nso_exercise,
 #     nso_sell,
 # ]
 
-# fy2022_events = [e for e in events if e.month < 21]
-# fy2023_events = [e for e in events if e.month >= 21 and e.month < 33]
-# fy2024_events = [e for e in events if e.month >= 33]
-
 # pd.DataFrame(
 #     [
-#         get_fy_projection(True, FYS[4], fy2024_events),
-#         get_fy_projection(False, FYS[4], fy2024_events),
+#         get_fy_projection(True, FYS[2], events),
+#         get_fy_projection(False, FYS[2], events),
+#         get_fy_projection(True, FYS[3], events),
+#         get_fy_projection(False, FYS[3], events),
+#         get_fy_projection(True, FYS[4], events),
+#         get_fy_projection(False, FYS[4], events),
 #     ]
 # )
 
