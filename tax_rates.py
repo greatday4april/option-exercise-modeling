@@ -45,11 +45,11 @@ AMT_TAX_BRACKETS = {
 CA_AMT_TAX_BRACKETS = {
     "married": [
         TaxRate(0, 0),
-        TaxRate(40000, 6.65),
+        TaxRate(0, 7),
     ],
     "single": [
         TaxRate(0, 0),
-        TaxRate(40000, 6.65),
+        TaxRate(0, 7),
     ],
 }
 

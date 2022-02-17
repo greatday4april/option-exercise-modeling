@@ -97,7 +97,13 @@ class FY:
 
 
 FYS = {
-    "2022": FY("Dec 31 2022", 238050, 127710 + 37500, 300000 * 9 / 48, 0),
+    "2022": FY(
+        "Dec 31 2022",
+        230000 * 0.9 * 10 / 12 + 230000 * 2 / 12 + 230000 * 0.15 * 0.5,
+        141900 * 1 / 12 + 127710 * 10 / 12 + 37500,
+        300000 * 3 / 16,
+        0,
+    ),
     "2023": FY(
         "Dec 31 2023",
         238050,
@@ -159,7 +165,9 @@ class Model:
         return self.get_tax(NIIT_TAX_BRACKETS, amount)
 
     def get_state_tax(self, amount):
-        return self.get_tax(STATE_TAX_BRACKETS, amount)
+        return self.get_tax(STATE_TAX_BRACKETS, amount) + 0.01 * max(
+            0, amount - 1000000
+        )
 
 
 def get_fy_projection(married, fy: FY, events: List[Event]):
@@ -168,10 +176,9 @@ def get_fy_projection(married, fy: FY, events: List[Event]):
 
     self_income = fy.salary + fy.vested_rsu + sum(e.income() for e in events)
 
-    # ignore 3 months of allocation for salary
     self_ca_income = sum(e.income() * e.ca_ratio() for e in events)
     if fy.date.year == 2022:
-        self_ca_income += fy.salary * 3 / 12 + 37500 + 127710 * 2 / 12
+        self_ca_income += 230000 * 2 / 12 + 270000 * 0.15 + 37500 + 141900 * 1 / 12
 
     spouse_income = fy.spouse_salary + fy.spouse_vested_rsu
 
@@ -181,7 +188,17 @@ def get_fy_projection(married, fy: FY, events: List[Event]):
     ]
     iso_spreads = sum((e.price - STRIKE_PRICE) * e.quantity for e in iso_exercises)
 
-    ca_income_tax = m.get_state_tax(self_ca_income)
+    # get effective tax rate first and then apply to CA portion of income
+
+    if married:
+        ca_income_tax = (
+            m.get_state_tax(self_income + spouse_income)
+            / (self_income + spouse_income)
+            * self_ca_income
+        )
+    else:
+        ca_income_tax = m.get_state_tax(self_income) / self_income * self_ca_income
+
     ca_amt_tax = max(
         0,
         m.get_tax(
@@ -273,6 +290,29 @@ def get_fy_projection(married, fy: FY, events: List[Event]):
         "ca_amt_tax": int(ca_amt_tax),
     }
 
+
+# import pandas as pd
+
+# events = [
+#     Event("Sep 01 2022", "exercise", "iso", 6377),
+#     Event("Sep 30 2022", "sale", "nso", 20500, FMV_AT_EXERCISE),
+#     Event(
+#         "Dec 01 2023",
+#         "sale",
+#         "iso",
+#         6377,
+#         Event("Sep 01 2022", "exercise", "iso", 6377).price,
+#     ),
+#     Event("Mar 15 2025", "exercise and sale", "nso", 50123),
+# ]
+# print(
+#     [
+#         get_fy_projection(True, FYS["2022"], events),
+#         get_fy_projection(True, FYS["2023"], events),
+#         get_fy_projection(True, FYS["2024"], events),
+#         get_fy_projection(True, FYS["2025"], events),
+#     ]
+# )
 
 # first = Event(6377, 27, "exercise", "iso")
 
