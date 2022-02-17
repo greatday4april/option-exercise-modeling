@@ -26,7 +26,7 @@ STRIKE_PRICE = 15.68
 FMV_AT_EXERCISE = 19.95
 
 GRANT_DATE = to_date("Mar 19 2021")
-MOVE_DATE = to_date("Feb 25 2022")
+MOVE_DATE = to_date("Mar 01 2022")
 END_DATE = to_date("Mar 15 2025")
 
 MOVE_DATE_PRICE = 60.0
